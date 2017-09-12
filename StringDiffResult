@@ -1,0 +1,80 @@
+//
+//  StringDiffResult.swift
+//  https://github.com/mthud/MorphingLabel
+//
+
+import Foundation
+
+public typealias StringDiffResult = ([CharacterDiffResult], skipDrawingResults: [Bool])
+
+public extension String {
+    
+    public func diffWith(_ anotherString: String?) -> StringDiffResult {
+        
+        guard let anotherString = anotherString else {
+            let diffResults: [CharacterDiffResult] = Array(repeating: .delete, count: characters.count) 
+            let skipDrawingResults: [Bool] = Array(repeating: false, count: characters.count)
+            return (diffResults, skipDrawingResults)
+        }
+        
+        let newChars = anotherString.characters.enumerated()
+        let lhsLength = characters.count
+        let rhsLength = anotherString.characters.count
+        var skipIndexes = [Int]()
+        let leftChars = Array(characters)
+        
+        let maxLength = max(lhsLength, rhsLength)
+        var diffResults: [CharacterDiffResult] = Array(repeating: .add, count: maxLength) 
+        var skipDrawingResults: [Bool] = Array(repeating: false, count: maxLength)
+        
+        for i in 0..<maxLength {
+            // If new string is longer than the original one
+            if (i > lhsLength - 1) {
+                continue
+            }
+            
+            let leftChar = leftChars[i]
+            
+            // Search left character in the new string
+            var foundCharacterInRhs = false
+            for (j, newChar) in newChars {
+                if (skipIndexes.contains(j) || leftChar != newChar) {
+                    continue
+                }
+                
+                skipIndexes.append(j)
+                foundCharacterInRhs = true
+                if (i == j)
+                {
+                    // Character not changed
+                    diffResults[i] = .same
+                } 
+                else 
+                {
+                    // foundCharacterInRhs and move
+                    let offset = j - i
+                    
+                    if (i <= rhsLength - 1) {
+                        // Move to a new index and add a new character to new original place
+                        diffResults[i] = .moveAndAdd(offset: offset)
+                    } else {
+                        diffResults[i] = .move(offset: offset)
+                    }
+                    
+                    skipDrawingResults[j] = true
+                }
+                break
+            }
+            
+            if (!foundCharacterInRhs) {
+                if (i < rhsLength - 1) {
+                    diffResults[i] = .replace
+                } else {
+                    diffResults[i] = .delete
+                }
+            }
+        }
+        
+        return (diffResults, skipDrawingResults)
+    }
+}
